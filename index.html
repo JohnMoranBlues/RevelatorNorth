@@ -295,6 +295,269 @@ footer{
 </div>
 
 
+
+<!-- ══ THE STILL HOUR ══ -->
+
+<!-- ══ NORTH SESSION ══ -->
+<section style="
+  background:#1C150E;
+  padding:80px 48px;
+  border-top:1px solid rgba(232,220,200,0.06);
+  position:relative;overflow:hidden;
+">
+  <div style="position:absolute;inset:0;opacity:0.025;background:repeating-linear-gradient(0deg,transparent,transparent 40px,rgba(232,220,200,0.6) 40px,rgba(232,220,200,0.6) 41px)"></div>
+
+  <div style="max-width:780px;margin:0 auto;position:relative;z-index:1;text-align:center">
+
+    <p style="font-family:Montserrat,sans-serif;font-weight:400;font-size:9px;letter-spacing:0.52em;text-transform:uppercase;color:#7a5c3a;margin-bottom:14px">North Session</p>
+    <h2 style="font-family:'Cormorant Garamond',serif;font-weight:300;font-style:italic;font-size:clamp(1.8rem,3.2vw,2.8rem);color:#E8DCC8;line-height:1.2;margin-bottom:10px">A moment of stillness.<br>Timed with intention.</h2>
+    <p style="font-family:Montserrat,sans-serif;font-weight:300;font-size:11px;line-height:1.85;color:#5a4a36;margin-bottom:48px">Set your focus time, choose your sound, and let go.</p>
+
+    <!-- Sound selector -->
+    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:44px">
+      <button onclick="nsSelectSound('none')"   class="ns-snd active" data-id="none">  ✦ Silence</button>
+      <button onclick="nsSelectSound('forest')" class="ns-snd"        data-id="forest">⬡ Forest</button>
+      <button onclick="nsSelectSound('rain')"   class="ns-snd"        data-id="rain">  ◈ Rain</button>
+      <button onclick="nsSelectSound('ocean')"  class="ns-snd"        data-id="ocean"> ≈ Ocean</button>
+      <button onclick="nsSelectSound('fire')"   class="ns-snd"        data-id="fire">  ◉ Fire</button>
+      <button onclick="nsSelectSound('night')"  class="ns-snd"        data-id="night"> ☽ Night Bugs</button>
+    </div>
+
+    <!-- Timer -->
+    <div id="ns-display" style="
+      font-family:'Cormorant Garamond',serif;font-weight:300;
+      font-size:clamp(5rem,11vw,8.5rem);line-height:1;
+      color:#E8DCC8;letter-spacing:0.04em;margin-bottom:36px;
+    ">25:00</div>
+
+    <!-- Duration presets -->
+    <div style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:36px">
+      <button onclick="nsSetDur(5)"  class="ns-dur"        data-m="5">5 min</button>
+      <button onclick="nsSetDur(15)" class="ns-dur"        data-m="15">15 min</button>
+      <button onclick="nsSetDur(25)" class="ns-dur active" data-m="25">25 min</button>
+      <button onclick="nsSetDur(45)" class="ns-dur"        data-m="45">45 min</button>
+      <button onclick="nsSetDur(60)" class="ns-dur"        data-m="60">60 min</button>
+    </div>
+
+    <!-- Controls -->
+    <div style="display:flex;justify-content:center;gap:12px;margin-bottom:28px">
+      <button id="ns-start" onclick="nsToggle()" style="
+        background:#E8DCC8;color:#1C150E;border:none;cursor:pointer;
+        font-family:Montserrat,sans-serif;font-weight:500;
+        font-size:9px;letter-spacing:0.34em;text-transform:uppercase;
+        padding:13px 34px;transition:background .25s;
+      ">Begin</button>
+      <button onclick="nsReset()" style="
+        background:transparent;color:#4a3c28;
+        border:1px solid rgba(232,220,200,0.15);cursor:pointer;
+        font-family:Montserrat,sans-serif;font-weight:300;
+        font-size:9px;letter-spacing:0.28em;text-transform:uppercase;
+        padding:13px 22px;transition:all .25s;
+      ">Reset</button>
+    </div>
+
+    <p id="ns-msg" style="
+      font-family:'Cormorant Garamond',serif;font-style:italic;
+      font-size:1.15rem;color:#7a5c3a;
+      opacity:0;transition:opacity 1.2s;min-height:26px;
+    "></p>
+
+  </div>
+</section>
+
+<style>
+.ns-snd{
+  background:transparent;border:1px solid rgba(232,220,200,0.12);
+  color:#6a5a45;font-family:Montserrat,sans-serif;font-weight:300;
+  font-size:10px;letter-spacing:0.2em;text-transform:uppercase;
+  padding:8px 16px;cursor:pointer;transition:all .25s;
+}
+.ns-snd:hover{border-color:rgba(232,220,200,0.35);color:#c8b898;}
+.ns-snd.active{background:rgba(232,220,200,0.1);border-color:rgba(232,220,200,0.45);color:#E8DCC8;}
+.ns-dur{
+  background:transparent;border:1px solid rgba(232,220,200,0.1);
+  color:#4a3c28;font-family:Montserrat,sans-serif;font-weight:300;
+  font-size:10px;letter-spacing:0.15em;
+  padding:6px 14px;cursor:pointer;transition:all .25s;
+}
+.ns-dur:hover{border-color:rgba(232,220,200,0.3);color:#9a8878;}
+.ns-dur.active{border-color:rgba(232,220,200,0.42);color:#E8DCC8;}
+#ns-start:hover{background:#c8b898;}
+</style>
+
+<script>
+(function(){
+  const AC = new (window.AudioContext||window.webkitAudioContext)();
+  const master = AC.createGain(); master.gain.value=0; master.connect(AC.destination);
+  let nodes=[], running=false, interval=null, total=25*60, left=25*60, curSound='none';
+
+  function fade(to,dur=1.2){
+    master.gain.cancelScheduledValues(AC.currentTime);
+    master.gain.setValueAtTime(master.gain.value,AC.currentTime);
+    master.gain.linearRampToValueAtTime(to,AC.currentTime+dur);
+  }
+  function stopNodes(){ nodes.forEach(n=>{try{n.stop()}catch(e){}}); nodes=[]; }
+
+  function brownNoise(vol=0.5){
+    const b=AC.createBuffer(1,AC.sampleRate*6,AC.sampleRate),d=b.getChannelData(0);
+    let l=0;
+    for(let i=0;i<d.length;i++){const w=Math.random()*2-1;d[i]=l=(l+0.02*w)/1.02;}
+    const s=AC.createBufferSource(); s.buffer=b; s.loop=true;
+    const g=AC.createGain(); g.gain.value=vol;
+    s.connect(g); g.connect(master); s.start(); nodes.push(s); return s;
+  }
+  function pinkNoise(vol=0.4){
+    const b=AC.createBuffer(1,AC.sampleRate*4,AC.sampleRate),d=b.getChannelData(0);
+    let b0=0,b1=0,b2=0,b3=0,b4=0,b5=0;
+    for(let i=0;i<d.length;i++){
+      const w=Math.random()*2-1;
+      b0=0.99886*b0+w*0.0555179; b1=0.99332*b1+w*0.0750759;
+      b2=0.96900*b2+w*0.1538520; b3=0.86650*b3+w*0.3104856;
+      b4=0.55000*b4+w*0.5329522; b5=-0.7616*b5-w*0.0168980;
+      d[i]=(b0+b1+b2+b3+b4+b5+w*0.5362)/6.5;
+    }
+    const s=AC.createBufferSource(); s.buffer=b; s.loop=true;
+    const g=AC.createGain(); g.gain.value=vol;
+    s.connect(g); g.connect(master); s.start(); nodes.push(s);
+  }
+  function osc(freq,vol=0.04,type='sine'){
+    const o=AC.createOscillator(),g=AC.createGain();
+    o.frequency.value=freq; o.type=type; g.gain.value=vol;
+    o.connect(g); g.connect(master); o.start(); nodes.push(o);
+  }
+  function lfoMod(target,rate,depth){
+    const l=AC.createOscillator(),g=AC.createGain();
+    l.frequency.value=rate; g.gain.value=depth;
+    l.connect(g); g.connect(target); l.start(); nodes.push(l);
+  }
+  function crackle(){
+    const b=AC.createBuffer(1,AC.sampleRate*2,AC.sampleRate),d=b.getChannelData(0);
+    for(let i=0;i<d.length;i++)d[i]=Math.random()*2-1;
+    const s=AC.createBufferSource(); s.buffer=b; s.loop=true;
+    const f=AC.createBiquadFilter(); f.type='bandpass'; f.frequency.value=900; f.Q.value=0.4;
+    const g=AC.createGain(); g.gain.value=0.45;
+    s.connect(f); f.connect(g); g.connect(master); s.start(); nodes.push(s);
+  }
+
+  const sounds = {
+    none:   ()=>{},
+    forest: ()=>{
+      brownNoise(0.12);
+      pinkNoise(0.08);
+      // Kuş sesleri — kısa yüksek frekanslı tonlar
+      [2800,3200,1900,4200,1400].forEach((f,i)=>{
+        setTimeout(()=>{
+          const chirp=()=>{
+            if(!running && curSound!=='forest') return;
+            const o=AC.createOscillator(),g=AC.createGain();
+            o.frequency.setValueAtTime(f,AC.currentTime);
+            o.frequency.exponentialRampToValueAtTime(f*1.15,AC.currentTime+0.08);
+            g.gain.setValueAtTime(0,AC.currentTime);
+            g.gain.linearRampToValueAtTime(0.06,AC.currentTime+0.03);
+            g.gain.linearRampToValueAtTime(0,AC.currentTime+0.12);
+            o.connect(g); g.connect(master); o.start(); o.stop(AC.currentTime+0.15);
+            setTimeout(chirp, 2000+Math.random()*5000);
+          }; chirp();
+        }, i*600+Math.random()*1000);
+      });
+    },
+    rain:   ()=>{
+      pinkNoise(0.65);
+      brownNoise(0.25);
+      // Damla sesi için 432Hz modülasyonu
+      osc(432,0.006,'sine');
+    },
+    ocean:  ()=>{
+      brownNoise(0.28);
+      pinkNoise(0.12);
+      // Dalga — yavaş LFO ile ses şekillendirme
+      const waveGain=AC.createGain(); waveGain.gain.value=0.18;
+      const l=AC.createOscillator(); l.frequency.value=0.08;
+      const lg=AC.createGain(); lg.gain.value=0.15;
+      l.connect(lg); lg.connect(waveGain.gain); l.start(); nodes.push(l);
+      brownNoise(0.1);
+    },
+    fire:   ()=>{
+      brownNoise(0.1);
+      crackle();
+      // Kor sesi — düşük frekanslı salınım
+      const o=AC.createOscillator(),g=AC.createGain();
+      o.type='sawtooth'; o.frequency.value=55; g.gain.value=0.03;
+      lfoMod(o.frequency,0.3,8);
+      o.connect(g); g.connect(master); o.start(); nodes.push(o);
+    },
+    night:  ()=>{
+      brownNoise(0.06);
+      // Cırcır böceği — 4kHz etrafında titreşimli
+      [3800,4100,4400,3600].forEach((f,i)=>{
+        const o=AC.createOscillator(),g=AC.createGain();
+        o.type='sine'; o.frequency.value=f; g.gain.value=0.022;
+        lfoMod(g.gain,12+i*0.3,0.018);
+        o.connect(g); g.connect(master); o.start(); nodes.push(o);
+      });
+    }
+  };
+
+  window.nsSelectSound=function(id){
+    curSound=id;
+    document.querySelectorAll('.ns-snd').forEach(b=>b.classList.toggle('active',b.dataset.id===id));
+    fade(0,0.7);
+    setTimeout(()=>{
+      stopNodes();
+      if(id!=='none' && running){ sounds[id](); fade(0.9,1.2); }
+    },800);
+  };
+
+  function fmt(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+  function tick(){
+    left--;
+    document.getElementById('ns-display').textContent=fmt(left);
+    if(left<=0){
+      clearInterval(interval); running=false;
+      document.getElementById('ns-start').textContent='Begin';
+      fade(0,2.5); setTimeout(stopNodes,2600);
+      const msgs=["Well done. Return slowly.","The session is complete. Breathe.","You stayed. That's everything.","Rest now. You've earned the quiet.","Done. Step outside if you can."];
+      const m=document.getElementById('ns-msg');
+      m.textContent=msgs[Math.floor(Math.random()*msgs.length)];
+      m.style.opacity='1';
+      left=total;
+      document.getElementById('ns-display').textContent=fmt(left);
+    }
+  }
+
+  window.nsToggle=function(){
+    if(AC.state==='suspended') AC.resume();
+    if(!running){
+      running=true;
+      document.getElementById('ns-start').textContent='Pause';
+      document.getElementById('ns-msg').style.opacity='0';
+      if(curSound!=='none'){ stopNodes(); sounds[curSound](); fade(0.88,1.5); }
+      interval=setInterval(tick,1000);
+    } else {
+      clearInterval(interval); running=false;
+      document.getElementById('ns-start').textContent='Continue';
+      fade(0,1.2);
+    }
+  };
+
+  window.nsSetDur=function(m){
+    if(running) return;
+    document.querySelectorAll('.ns-dur').forEach(b=>b.classList.toggle('active',+b.dataset.m===m));
+    total=m*60; left=total;
+    document.getElementById('ns-display').textContent=fmt(left);
+    document.getElementById('ns-msg').style.opacity='0';
+  };
+
+  window.nsReset=function(){
+    clearInterval(interval); running=false; left=total;
+    document.getElementById('ns-display').textContent=fmt(left);
+    document.getElementById('ns-start').textContent='Begin';
+    document.getElementById('ns-msg').style.opacity='0';
+    fade(0,0.8); setTimeout(stopNodes,900);
+  };
+})();
+</script>
+
 <div class="corp-banner">
   <span class="corp-banner-text">Part of the</span>
   <a href="https://johnmoranblues.github.io/RevelatorCorp/" target="_blank" class="corp-banner-link">Revelator Corp</a>
